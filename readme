@@ -1,0 +1,151 @@
+= 1. Overview =
+
+This package contains a node which does the followings.
+
+* Receives positional information from AWS IoT Core
+* Converts them to goal positions and orientations
+* Sends them to the action server of Navigation2
+
+
+= 2. Setup =
+
+This section assumes Nvidia Jetson (Ubuntu18.04) and ROS2 Dashing.
+
+== 2.1 Install navigation2 ==
+
+Install [[https://navigation.ros.org/index.html | Navigation 2]].
+
+{{{
+sudo apt install ros-dashing-navigation2
+sudo apt install ros-dashing-nav2-bringup
+}}}
+
+== 2.2 Install AWSIoTSDK ==
+
+Install [[https://github.com/aws/aws-iot-device-sdk-python-v2 | AWS IoT Device SDK v2 for Python]]
+
+{{{
+pip install awsiotsdk
+}}}
+
+== 2.3 Setup AWS IoT Core ==
+
+ref. [[https://aws.amazon.com/premiumsupport/knowledge-center/iot-core-publish-mqtt-messages-python/?nc1=h_ls]]
+
+=== 2.3.1 Create and download your certificate ===
+
+The following files are required.
+
+* Your certificate file (a1b23cd45e-certificate.pem.crt)
+* Your private key file (a1b23cd45e-private.pem.key)
+* Your root CA file
+
+
+= 3. Install =
+
+Install this package.
+
+{{{
+apt install awsiotcore_to_navigation2
+}}}
+
+
+= 4. How to Use =
+
+== 4.1 Run commmand ==
+
+Please follow this command.
+
+{{{
+# example
+ros2 run awsiotcore_to_navigation2 iotcore_to_nav2 \
+--topic-name="YOUR_TOPIC_NAME" \
+--client-id="YOUR-CLIENT-ID" \
+--endpoint="your-iotcore-endpoint.your-aws-region.amazonaws.com" \
+--cert-path="/your/file/path/your-id-certificate.pem.crt" \
+--private-cert-path="/your/file/path/your-id-private.pem.key" \
+--root-cert-path="/home/yourname/iot_core_certificate/AmazonRootCA1.pem"
+}}}
+
+== 4.2 Arguments ==
+
+* --topic-name, -t (required)
+  * Enter your MQTT receive topic name. (ex: /my-topic-name/sub)
+* --publish-topic-name, -n
+  * Enter your MQTT publish topic name. (ex: /my-topic-name/pub)
+* --endpoint, -e (required)
+  * Enter your AWS IoT Core Endpoint.
+* --client-id, -i (required)
+  * Enter your client ID.
+* --cert-path, -c (required)
+  * Enter your full path of certificate file.
+* --private-cert-path, -p (required)
+  * Enter your full path of  private key file.
+* --root-cert-path, -r (required)
+  * Enter your full path of Root CA file.
+
+{{{
+# Run the node without arguments to see the usage
+ros2 run awsiotcore_to_navigation2 iotcore_to_nav2
+
+usage: iotcore_to_nav2 [-h] --topic-name TOPIC
+                       [--publish-topic-name PUBLISH_TOPIC] --endpoint
+                       ENDPOINT --client-id CLIENT_ID --cert-path CERT
+                       --private-cert-path PRIVATE_CERT --root-cert-path
+                       ROOT_PATH
+iotcore_to_nav2: error: the following arguments are required: --topic-name/-t, --endpoint/-e, --client-id/-i, --cert-path/-c, --private-cert-path/-p, --root-cert-path/-r
+}}}
+
+
+= 5. Operation =
+
+== 5.1 Format of positional information ==
+
+The format of the positional information in MQTT messages from AWS IoT Core is as follows.
+
+{{{
+# JSON format
+{
+    "pos_x": X position from your map.（float）,
+    "pos_y": Y position from your map.（float）,
+    "pos_z": Z position from your map.（float）,
+    "orientation_x": Rotate X（float）,
+    "orientation_y": Rotate Y（float）,
+    "orientation_z": Rotate Z（float）,
+    "orientation_w": Rotate W（float）
+}
+}}}
+
+== 5.2 Ex: Publishing MQTT by mosquitto ==
+
+1. Install mosquitto
+
+{{{
+brew install mosquitto
+}}}
+
+2. Run this package
+
+{{{
+ros2 run awsiotcore_to_navigation2 iotcore_to_nav2 \
+--topic-name="YOUR_TOPIC_NAME" \
+--client-id="YOUR-CLIENT-ID" \
+--endpoint="your-iotcore-endpoint.your-aws-region.amazonaws.com" \
+--cert-path="/your/file/path/your-id-certificate.pem.crt" \
+--private-cert-path="/your/file/path/your-id-private.pem.key" \
+--root-cert-path="/home/yourname/iot_core_certificate/AmazonRootCA1.pem"
+}}}
+
+3. Publish a MQTT message by mosquitto
+
+{{{
+mosquitto_pub -d \
+--cafile /home/yourname/iot_core_certificate/AmazonRootCA1.pem \
+--cert /your/file/path/your-id-certificate.pem.crt \
+--key /your/file/path/your-id-private.pem.key \
+-h your-iotcore-endpoint.your-aws-region.amazonaws.com \
+-p 8883 \
+-t /YOUR_TOPIC_NAME \
+-q 1 \
+-m  "{'pos_x': 3.0001, 'pos_y': 0.003, 'pos_z': 0.0, 'orientation_x': 0.0, 'orientation_y': 0.0, 'orientation_z': -0.00210151, 'orientation_w': 0.999998}"
+}}}
